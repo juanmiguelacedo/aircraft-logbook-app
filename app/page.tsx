@@ -261,9 +261,11 @@ export default function AircraftLogbookApp() {
     setMessage("Entry saved.");
   }
 
-  function deleteEntry(id: number) {
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
-    setMessage("Entry deleted.");
+  async function deleteEntry(id) {
+  const { error } = await supabase
+    .from("flights")
+    .delete()
+    .eq("id", id);
   }
 
   if (!session) {
