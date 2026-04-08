@@ -238,66 +238,66 @@ export default function AircraftLogbookApp() {
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    const error = validate();
-    if (error) {
-      setMessage(error);
-      return;
-    }
+  e.preventDefault();
 
-    const entry = {
-      id: Date.now(),
-      pilot: session.pilotName,
-      date: form.date,
-      originAirport: form.originAirport.trim().toUpperCase(),
-      destinationAirport: form.destinationAirport.trim().toUpperCase(),
-      tachStart: Number(form.tachStart),
-      tachEnd: Number(form.tachEnd),
-      flightTime: Number(tachDifference),
-      landings: Number(form.landings || 0),
-      oilLevelStart: Number(form.oilLevelStart),
-      oilAdded: form.oilAdded,
-      oilQty: form.oilAdded ? Number(form.oilQty) : 0,
-      fuelAdded: form.fuelAdded === "" ? 0 : Number(form.fuelAdded),
-      fuelRemaining: form.fuelRemaining === "" ? 0 : Number(form.fuelRemaining),
-      defect: form.defect.trim(),
-      remarks: form.remarks.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from("flights").insert({
-      pilot: entry.pilot,
-      date: entry.date,
-      origin: entry.originAirport,
-      destination: entry.destinationAirport,
-      tach_start: entry.tachStart,
-      tach_end: entry.tachEnd,
-      flight_time: entry.flightTime,
-      landings: entry.landings,
-      oil_level_start: entry.oilLevelStart,
-      oil_added: entry.oilAdded,
-      oil_qty: entry.oilQty,
-      fuel_added: entry.fuelAdded,
-      fuel_remaining: entry.fuelRemaining,
-      defect: entry.defect,
-      remarks: entry.remarks,
-    });
-
-    if (error) {
-      setMessage("Error saving to database");
-      return;
-    }
-
-    setEntries((prev) => [entry, ...prev]);
-    setForm({
-      ...emptyForm,
-      pilot: session.pilotName,
-      date: new Date().toISOString().slice(0, 10),
-      tachStart: form.tachEnd,
-    });
-    setMessage("Entry saved.");
+  const validationError = validate();
+  if (validationError) {
+    setMessage(validationError);
+    return;
   }
 
+  const entry = {
+    id: Date.now(),
+    pilot: session.pilotName,
+    date: form.date,
+    originAirport: form.originAirport.trim().toUpperCase(),
+    destinationAirport: form.destinationAirport.trim().toUpperCase(),
+    tachStart: Number(form.tachStart),
+    tachEnd: Number(form.tachEnd),
+    flightTime: Number(tachDifference),
+    landings: Number(form.landings || 0),
+    oilLevelStart: Number(form.oilLevelStart),
+    oilAdded: form.oilAdded,
+    oilQty: form.oilAdded ? Number(form.oilQty) : 0,
+    fuelAdded: form.fuelAdded === "" ? 0 : Number(form.fuelAdded),
+    fuelRemaining: form.fuelRemaining === "" ? 0 : Number(form.fuelRemaining),
+    defect: form.defect.trim(),
+    remarks: form.remarks.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  const { error: insertError } = await supabase.from("flights").insert({
+    pilot: entry.pilot,
+    date: entry.date,
+    origin: entry.originAirport,
+    destination: entry.destinationAirport,
+    tach_start: entry.tachStart,
+    tach_end: entry.tachEnd,
+    flight_time: entry.flightTime,
+    landings: entry.landings,
+    oil_level_start: entry.oilLevelStart,
+    oil_added: entry.oilAdded,
+    oil_qty: entry.oilQty,
+    fuel_added: entry.fuelAdded,
+    fuel_remaining: entry.fuelRemaining,
+    defect: entry.defect,
+    remarks: entry.remarks,
+  });
+
+  if (insertError) {
+    setMessage("Error saving to database");
+    return;
+  }
+
+  setEntries((prev) => [entry, ...prev]);
+  setForm({
+    ...emptyForm,
+    pilot: session.pilotName,
+    date: new Date().toISOString().slice(0, 10),
+    tachStart: form.tachEnd,
+  });
+  setMessage("Entry saved.");
+}
   async function deleteEntry(id) {
   const { error } = await supabase
     .from("flights")
