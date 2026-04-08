@@ -64,7 +64,9 @@ function cardStyle() {
   };
 }
 
-function daysTo(dateStr) {
+function daysTo(dateStr: string) {
+  return;
+}
   if (!dateStr) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -73,13 +75,13 @@ function daysTo(dateStr) {
   return Math.round((target - today) / 86400000);
 }
 
-function expiryText(days) {
+function expiryText(days: number | null) {
   if (days === null) return "Not set";
   if (days < 0) return `${Math.abs(days)} day(s) overdue`;
   return `${days} day(s) remaining`;
 }
 
-function expiryColor(days) {
+function expiryColor(days: number | null) {
   if (days === null) return "#64748b";
   if (days < 0) return "#b91c1c";
   if (days <= 30) return "#c2410c";
@@ -197,15 +199,15 @@ export default function AircraftLogbookApp() {
   const insuranceDays = daysTo(aircraft.insuranceExpiry);
   const permitDays = daysTo(aircraft.permitExpiry);
 
-  function updateField(name, value) {
+  function updateField(name: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function updateAircraft(name, value) {
+  function updateAircraft(name: string, value: string) {
     setAircraft((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleLogin(e) {
+  function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     const user = demoUsers.find(
       (u) => u.username === loginForm.username.trim().toLowerCase() && u.password === loginForm.password
@@ -237,7 +239,10 @@ export default function AircraftLogbookApp() {
     return "";
   }
 
-  async function handleSubmit(e) {
+  if (insertError) {
+  setMessage("Error saving to database");
+  return;
+}
   e.preventDefault();
 
   const validationError = validate();
@@ -298,7 +303,7 @@ export default function AircraftLogbookApp() {
   });
   setMessage("Entry saved.");
 }
-  async function deleteEntry(id) {
+  async function deleteEntry(id: number) {
   const { error } = await supabase
     .from("flights")
     .delete()
