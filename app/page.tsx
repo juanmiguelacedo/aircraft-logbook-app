@@ -1,6 +1,13 @@
 "use client";
+// @ts-nocheck
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://ttcovyorymrfoawhohks.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y292eW9yeW1yZm9hd2hvaGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NDQ1MTYsImV4cCI6MjA5MTIyMDUxNn0.4xo-K9l69w6XrpUZ9Asf5lLLCwGAyRkGOCY5eBDvWzc"
+);
 
 const STORAGE_KEY = "easy-aircraft-logbook-v4";
 const SESSION_KEY = "easy-aircraft-logbook-session-v1";
@@ -35,7 +42,7 @@ const emptyForm = {
   remarks: "",
 };
 
-function fieldStyle(disabled = false): React.CSSProperties {
+function fieldStyle(disabled = false) {
   return {
     width: "100%",
     padding: "12px 14px",
@@ -47,7 +54,7 @@ function fieldStyle(disabled = false): React.CSSProperties {
   };
 }
 
-function cardStyle(): React.CSSProperties {
+function cardStyle() {
   return {
     border: "1px solid #e5e7eb",
     borderRadius: 16,
@@ -57,80 +64,92 @@ function cardStyle(): React.CSSProperties {
   };
 }
 
-function daysTo(dateStr: string) {
+function daysTo(dateStr) {
   if (!dateStr) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr);
   target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
+  return Math.round((target - today) / 86400000);
 }
 
-function expiryText(days: number | null) {
+function expiryText(days) {
   if (days === null) return "Not set";
   if (days < 0) return `${Math.abs(days)} day(s) overdue`;
   return `${days} day(s) remaining`;
 }
 
-function expiryColor(days: number | null) {
+function expiryColor(days) {
   if (days === null) return "#64748b";
   if (days < 0) return "#b91c1c";
   if (days <= 30) return "#c2410c";
   return "#166534";
 }
 
-type Entry = {
-  id: number;
-  pilot: string;
-  date: string;
-  originAirport: string;
-  destinationAirport: string;
-  tachStart: number;
-  tachEnd: number;
-  flightTime: number;
-  landings: number;
-  oilLevelStart: number;
-  oilAdded: boolean;
-  oilQty: number;
-  fuelAdded: number;
-  fuelRemaining: number;
-  defect: string;
-  remarks: string;
-  createdAt: string;
-};
+function SpitfireLogo() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 100 100" aria-label="Generic airplane">
+      <circle cx="50" cy="50" r="46" fill="#1c1917" stroke="#a16207" strokeWidth="4" />
+      {/* simple generic airplane (top view) */}
+      <g fill="#f5f5dc">
+        {/* fuselage */}
+        <rect x="47" y="18" width="6" height="64" rx="3" />
+        {/* wings */}
+        <rect x="20" y="44" width="60" height="8" rx="4" />
+        {/* tail */}
+        <rect x="38" y="68" width="24" height="6" rx="3" />
+        {/* nose */}
+        <circle cx="50" cy="18" r="3" />
+      </g>
+    </svg>
+  );
+}
 
-type Aircraft = typeof emptyAircraft;
-type Session = { username: string; pilotName: string } | null;
 
 export default function AircraftLogbookApp() {
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [aircraft, setAircraft] = useState<Aircraft>(emptyAircraft);
+  const [entries, setEntries] = useState([]);
+  const [aircraft, setAircraft] = useState(emptyAircraft);
   const [form, setForm] = useState(emptyForm);
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
-  const [session, setSession] = useState<Session>(null);
+  const [session, setSession] = useState(null);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
 
   useEffect(() => {
-    try {
-      const savedSession = localStorage.getItem(SESSION_KEY);
-      if (savedSession) {
-        const parsedSession = JSON.parse(savedSession);
-        if (parsedSession?.pilotName) {
-          setSession(parsedSession);
-          setForm((prev) => ({ ...prev, pilot: parsedSession.pilotName }));
-        }
-      }
-    } catch {}
+    async function loadFlights() {
+      const { data, error } = await supabase
+        .from("flights")
+        .select("*")
+        .order("id", { ascending: false });
 
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed.entries)) setEntries(parsed.entries);
-        if (parsed.aircraft) setAircraft({ ...emptyAircraft, ...parsed.aircraft });
+      if (error) {
+        console.error(error);
+        return;
       }
-    } catch {}
+
+      const mapped = data.map((f) => ({
+        id: f.id,
+        pilot: f.pilot,
+        date: f.date,
+        originAirport: f.origin,
+        destinationAirport: f.destination,
+        tachStart: f.tach_start,
+        tachEnd: f.tach_end,
+        flightTime: f.flight_time,
+        landings: f.landings,
+        oilLevelStart: f.oil_level_start,
+        oilAdded: f.oil_added,
+        oilQty: f.oil_qty,
+        fuelAdded: f.fuel_added,
+        fuelRemaining: f.fuel_remaining,
+        defect: f.defect,
+        remarks: f.remarks,
+      }));
+
+      setEntries(mapped);
+    }
+
+    loadFlights();
   }, []);
 
   useEffect(() => {
@@ -161,10 +180,9 @@ export default function AircraftLogbookApp() {
     const flightHours = entries.reduce((acc, entry) => acc + Number(entry.flightTime || 0), 0);
     const openDefects = entries.filter((entry) => entry.defect && entry.defect.trim()).length;
     const latestTach = entries.length ? entries[0].tachEnd : "—";
-    const remainingMaintenance =
-      aircraft.nextMaintenanceRemaining === ""
-        ? null
-        : Number(aircraft.nextMaintenanceRemaining) - flightHours;
+    const remainingMaintenance = aircraft.nextMaintenanceRemaining === ""
+      ? null
+      : Number(aircraft.nextMaintenanceRemaining) - flightHours;
     return { flightHours, openDefects, latestTach, remainingMaintenance };
   }, [entries, aircraft.nextMaintenanceRemaining]);
 
@@ -179,15 +197,15 @@ export default function AircraftLogbookApp() {
   const insuranceDays = daysTo(aircraft.insuranceExpiry);
   const permitDays = daysTo(aircraft.permitExpiry);
 
-  function updateField(name: string, value: string | boolean) {
+  function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function updateAircraft(name: string, value: string) {
+  function updateAircraft(name, value) {
     setAircraft((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleLogin(e: React.FormEvent) {
+  function handleLogin(e) {
     e.preventDefault();
     const user = demoUsers.find(
       (u) => u.username === loginForm.username.trim().toLowerCase() && u.password === loginForm.password
@@ -214,16 +232,12 @@ export default function AircraftLogbookApp() {
     if (form.tachStart === "" || form.tachEnd === "") return "Tach start and end are required.";
     if (tachDifference === "" || Number(tachDifference) < 0) return "Invalid tach values.";
     if (form.oilLevelStart === "") return "Oil level at start is required.";
-    if (Number(form.oilLevelStart) < 1 || Number(form.oilLevelStart) > 7) {
-      return "Oil level at start must be between 1 and 7.";
-    }
-    if (form.oilAdded && (form.oilQty === "" || Number(form.oilQty) <= 0)) {
-      return "Oil added must be greater than zero ml.";
-    }
+    if (Number(form.oilLevelStart) < 1 || Number(form.oilLevelStart) > 7) return "Oil level at start must be between 1 and 7.";
+    if (form.oilAdded && (form.oilQty === "" || Number(form.oilQty) <= 0)) return "Oil added must be greater than zero ml.";
     return "";
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const error = validate();
     if (error) {
@@ -231,9 +245,9 @@ export default function AircraftLogbookApp() {
       return;
     }
 
-    const entry: Entry = {
+    const entry = {
       id: Date.now(),
-      pilot: session!.pilotName,
+      pilot: session.pilotName,
       date: form.date,
       originAirport: form.originAirport.trim().toUpperCase(),
       destinationAirport: form.destinationAirport.trim().toUpperCase(),
@@ -251,10 +265,33 @@ export default function AircraftLogbookApp() {
       createdAt: new Date().toISOString(),
     };
 
+    const { error } = await supabase.from("flights").insert({
+      pilot: entry.pilot,
+      date: entry.date,
+      origin: entry.originAirport,
+      destination: entry.destinationAirport,
+      tach_start: entry.tachStart,
+      tach_end: entry.tachEnd,
+      flight_time: entry.flightTime,
+      landings: entry.landings,
+      oil_level_start: entry.oilLevelStart,
+      oil_added: entry.oilAdded,
+      oil_qty: entry.oilQty,
+      fuel_added: entry.fuelAdded,
+      fuel_remaining: entry.fuelRemaining,
+      defect: entry.defect,
+      remarks: entry.remarks,
+    });
+
+    if (error) {
+      setMessage("Error saving to database");
+      return;
+    }
+
     setEntries((prev) => [entry, ...prev]);
     setForm({
       ...emptyForm,
-      pilot: session!.pilotName,
+      pilot: session.pilotName,
       date: new Date().toISOString().slice(0, 10),
       tachStart: form.tachEnd,
     });
@@ -266,7 +303,15 @@ export default function AircraftLogbookApp() {
     .from("flights")
     .delete()
     .eq("id", id);
+
+  if (error) {
+    setMessage("Error deleting from database");
+    return;
   }
+
+  setEntries((prev) => prev.filter((entry) => entry.id !== id));
+  setMessage("Entry deleted.");
+}
 
   if (!session) {
     return (
@@ -274,18 +319,7 @@ export default function AircraftLogbookApp() {
         <div style={{ maxWidth: 520, margin: "0 auto" }}>
           <div style={{ ...cardStyle(), background: "#0f172a", color: "white", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <svg width="48" height="48" viewBox="0 0 100 100" aria-label="C120 style aircraft logo">
-                <circle cx="50" cy="50" r="46" fill="#1c1917" stroke="#a16207" strokeWidth="4" />
-                <g fill="#f5f5dc">
-                  <rect x="15" y="35" width="70" height="10" rx="5" />
-                  <rect x="25" y="45" width="45" height="8" rx="4" />
-                  <polygon points="70,45 85,40 85,55 70,53" />
-                  <circle cx="45" cy="60" r="4" />
-                  <circle cx="60" cy="60" r="4" />
-                  <circle cx="75" cy="58" r="2.5" />
-                  <circle cx="25" cy="49" r="2.5" />
-                </g>
-              </svg>
+              <SpitfireLogo />
               <div style={{ fontSize: 28, fontWeight: 700 }}>EASY AIRCRAFT LOGBOOK</div>
             </div>
             <div style={{ marginTop: 8, color: "#cbd5e1", fontSize: 14 }}>
@@ -332,18 +366,7 @@ export default function AircraftLogbookApp() {
         <div style={{ ...cardStyle(), background: "#0f172a", color: "white", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <svg width="48" height="48" viewBox="0 0 100 100" aria-label="C120 style aircraft logo">
-                <circle cx="50" cy="50" r="46" fill="#1c1917" stroke="#a16207" strokeWidth="4" />
-                <g fill="#f5f5dc">
-                  <rect x="15" y="35" width="70" height="10" rx="5" />
-                  <rect x="25" y="45" width="45" height="8" rx="4" />
-                  <polygon points="70,45 85,40 85,55 70,53" />
-                  <circle cx="45" cy="60" r="4" />
-                  <circle cx="60" cy="60" r="4" />
-                  <circle cx="75" cy="58" r="2.5" />
-                  <circle cx="25" cy="49" r="2.5" />
-                </g>
-              </svg>
+              <SpitfireLogo />
               <div>
                 <div style={{ fontSize: 28, fontWeight: 700 }}>EASY AIRCRAFT LOGBOOK</div>
                 <div style={{ marginTop: 6, color: "#cbd5e1", fontSize: 14 }}>Logged in as {session.pilotName}</div>
@@ -469,14 +492,8 @@ export default function AircraftLogbookApp() {
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <button type="submit" style={{ padding: "12px 18px", borderRadius: 12, border: "none", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>
-                Save Entry
-              </button>
-              {message && (
-                <div style={{ color: message.includes("required") || message.includes("Invalid") || message.includes("must") ? "#b91c1c" : "#166534", fontWeight: 600 }}>
-                  {message}
-                </div>
-              )}
+              <button type="submit" style={{ padding: "12px 18px", borderRadius: 12, border: "none", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>Save Entry</button>
+              {message && <div style={{ color: message.includes("required") || message.includes("Invalid") || message.includes("must") ? "#b91c1c" : "#166534", fontWeight: 600 }}>{message}</div>}
             </div>
           </form>
         </div>
@@ -495,11 +512,7 @@ export default function AircraftLogbookApp() {
                       <div style={{ fontSize: 18, fontWeight: 700 }}>{entry.pilot}</div>
                       <div style={{ color: "#64748b", marginTop: 4 }}>{entry.date}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteEntry(entry.id)}
-                      style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 700, cursor: "pointer", height: 42 }}
-                    >
+                    <button type="button" onClick={() => deleteEntry(entry.id)} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 700, cursor: "pointer", height: 42 }}>
                       Delete
                     </button>
                   </div>
@@ -512,16 +525,8 @@ export default function AircraftLogbookApp() {
                     <div><strong>Oil Start:</strong> {entry.oilLevelStart} / 7</div>
                     <div><strong>Oil Added:</strong> {entry.oilAdded ? `${entry.oilQty} ml` : "No"}</div>
                   </div>
-                  {entry.defect && (
-                    <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#fff7ed", border: "1px solid #fed7aa" }}>
-                      <strong>Defect / Snag:</strong> {entry.defect}
-                    </div>
-                  )}
-                  {entry.remarks && (
-                    <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                      <strong>Pilot Remarks:</strong> {entry.remarks}
-                    </div>
-                  )}
+                  {entry.defect && <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#fff7ed", border: "1px solid #fed7aa" }}><strong>Defect / Snag:</strong> {entry.defect}</div>}
+                  {entry.remarks && <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe" }}><strong>Pilot Remarks:</strong> {entry.remarks}</div>}
                 </div>
               ))}
             </div>
